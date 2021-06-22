@@ -14,8 +14,9 @@ import src.utils as utils
 
 train_dataset = 'Cora'
 cuda_device = 3
-drop_method = 'DropMessageChannel'
-sample_number = 5
+# drop_method = 'DropMessageChannel'
+drop_method = 'Dropout'
+sample_number = 1
 drop_rate = 0.5
 
 # random generate train, validate, test mask
@@ -55,7 +56,7 @@ class Model(torch.nn.Module):
         self.gnn2.reset_parameters()
 
 
-model = Model(dataset.num_features, dataset.num_classes, drop_method, 1).to(device)
+model = Model(dataset.num_features, dataset.num_classes, drop_method, sample_number).to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=0.005, weight_decay=0.0005)
 epoch_num = 1000
 loss_func = loss.AugmentedCrossEntropy()
