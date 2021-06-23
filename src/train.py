@@ -15,12 +15,14 @@ import src.utils as utils
 train_dataset = 'Cora'
 cuda_device = 3
 # drop_method = 'DropMessageChannel'
-drop_method = 'Dropout'
+drop_method = 'DropMessageChannel'
 sample_number = 1
-drop_rate = 0.5
+drop_rate = 0.6
+unbias = True
+first_layer_output_num = 32
 
 # random generate train, validate, test mask
-random_seed = 0
+random_seed = 1
 torch.manual_seed(random_seed)
 torch.cuda.manual_seed(random_seed)
 torch.backends.cudnn.benchmark = False
@@ -38,15 +40,16 @@ data = dataset[0].to(device=device)
 
 # Model
 class Model(torch.nn.Module):
-    def __init__(self, feature_num, output_num, drop_method, sample_number, first_layer_output_num: int = 8):
+    def __init__(self, feature_num, output_num, drop_method, sample_number, unbias: bool = True,
+                 first_layer_output_num: int = 8):
         super(Model, self).__init__()
-        self.gnn1 = ours.OurModelLayer(feature_num, first_layer_output_num, drop_method, sample_number)
-        self.gnn2 = ours.OurModelLayer(first_layer_output_num, output_num, drop_method, sample_number)
+        self.gnn1 = ours.OurModelLayer(feature_num, first_layer_output_num, drop_method, sample_number, unbias=unbias)
+        self.gnn2 = ours.OurModelLayer(first_layer_output_num, output_num, drop_method, sample_number, unbias=unbias)
 
     def forward(self, x: Tensor, edge_index: Adj, drop_rate: float = 0.5):
         x = self.gnn1(x, edge_index, drop_rate)
         x = F.relu(x)
-        if self.training:
+        if self.training and len(x.size()) == 3:
             x = utils.average_agg(x)
         x = self.gnn2(x, edge_index, drop_rate)
         return x
@@ -56,7 +59,8 @@ class Model(torch.nn.Module):
         self.gnn2.reset_parameters()
 
 
-model = Model(dataset.num_features, dataset.num_classes, drop_method, sample_number).to(device)
+model = Model(dataset.num_features, dataset.num_classes, drop_method, sample_number, unbias, first_layer_output_num).to(
+    device)
 optimizer = torch.optim.Adam(model.parameters(), lr=0.005, weight_decay=0.0005)
 epoch_num = 1000
 loss_func = loss.AugmentedCrossEntropy()

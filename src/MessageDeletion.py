@@ -150,7 +150,7 @@ class Dropout(MessagePassing, DeletionMethod):
     def drop(self, edge_index: Adj, x: torch.Tensor, drop_rate: float = 0.5, normalize: bool = True,
              unbias: bool = True, add_self_loop: bool = True):
         # dropout
-        x = F.dropout(x)
+        x = F.dropout(x, drop_rate)
 
         # add self loop
         if add_self_loop:

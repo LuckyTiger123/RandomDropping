@@ -38,13 +38,15 @@ class OurModelLayer(MessagePassing):
             self.drop_method = Md.DropEdge()
         elif drop_method == 'Dropout':
             self.drop_method = Md.Dropout()
+        else:
+            self.drop_method = None
 
         # augmentor
         self.augmentor = Aug.Augmentor(sample_number, self.drop_method)
 
     def forward(self, x: Tensor, edge_index: Adj, drop_rate: float = 0.5):
 
-        if self.training:
+        if self.training and self.drop_method is not None:
             # message addition TODO
 
             # message deletion
