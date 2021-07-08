@@ -46,6 +46,9 @@ class BbGCN(MessagePassing):
         self.unbias = unbias
         self.edge_weight = None
 
+    def reset_parameters(self):
+        pass
+
     def forward(self, x: Tensor, edge_index: Adj, drop_rate: float = 0):
         edge_index, self.edge_weight = self.pt.pretreatment(x, edge_index)
         y = self.propagate(edge_index=edge_index, size=None, x=x, drop_rate=drop_rate)
@@ -64,14 +67,14 @@ class BbGCN(MessagePassing):
 
         # adjust bias
         if self.unbias != 0:
-            x_j = x_j * (1 / (1 - drop_rate))
+            x_j = x_j * (1 / (1 - self.unbias))
 
         return x_j
 
 
 class BbGAT(MessagePassing):
     def __init__(self, in_channels: int, heads: int = 1, add_self_loops: bool = True, unbias: float = 0):
-        super(BbGAT, self).__init__()
+        super(BbGAT, self).__init__(node_dim=0)
         self.pt = ModelPretreatment(add_self_loops, False)
         self.unbias = unbias
         self.heads = heads
@@ -90,6 +93,7 @@ class BbGAT(MessagePassing):
         alpha_l = alpha_r = (x_l * self.att).sum(dim=-1)
 
         edge_index, _ = self.pt.pretreatment(x, edge_index)
+
         y = self.propagate(edge_index, x=(x_l, x_r), alpha=(alpha_l, alpha_r), drop_rate=drop_rate)
         y = y.view(-1, self.heads * x.size(-1))
         return y
@@ -97,7 +101,7 @@ class BbGAT(MessagePassing):
     def message(self, x_j: Tensor, alpha_j: Tensor, alpha_i: OptTensor, index: Tensor, ptr: OptTensor,
                 size_i: Optional[int], drop_rate: float):
         alpha = alpha_j if alpha_i is None else alpha_j + alpha_i
-        alpha = F.leaky_relu(alpha, self.negative_slope)
+        alpha = F.leaky_relu(alpha, 0.2)
         alpha = softmax(alpha, index, ptr, size_i)
 
         if not self.training:
@@ -108,7 +112,7 @@ class BbGAT(MessagePassing):
 
         # adjust bias
         if self.unbias != 0:
-            x_j = x_j * (1 / (1 - drop_rate))
+            x_j = x_j * (1 / (1 - self.unbias))
 
         return x_j * alpha.unsqueeze(-1)
 
@@ -121,6 +125,9 @@ class BbAPPNP(MessagePassing):
         self.alpha = alpha
         self.unbias = unbias
         self.edge_weight = None
+
+    def reset_parameters(self):
+        pass
 
     def forward(self, x: Tensor, edge_index: Adj, drop_rate: float = 0):
         edge_index, self.edge_weight = self.pt.pretreatment(x, edge_index)
@@ -144,6 +151,6 @@ class BbAPPNP(MessagePassing):
 
         # adjust bias
         if self.unbias != 0:
-            x_j = x_j * (1 / (1 - drop_rate))
+            x_j = x_j * (1 / (1 - self.unbias))
 
         return x_j
