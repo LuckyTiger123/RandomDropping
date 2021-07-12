@@ -154,3 +154,8 @@ class BbAPPNP(MessagePassing):
             x_j = x_j * (1 / (1 - self.unbias))
 
         return x_j
+
+
+class BbSAGE(MessagePassing):
+    def __init__(self, unbias: float = 0):
+        super(BbSAGE, self).__init__()

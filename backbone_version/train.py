@@ -39,12 +39,16 @@ data = dataset[0].to(device=device)
 class Model(torch.nn.Module):
     def __init__(self, feature_num, output_num, backbone, drop_method, unbias):
         super(Model, self).__init__()
+        self.backbone = backbone
         self.gnn1 = Md.OurModelLayer(feature_num, 64, drop_method, backbone, unbias=unbias, alpha=0.1, K=10)
         self.gnn2 = Md.OurModelLayer(64, output_num, drop_method, backbone, unbias=unbias, alpha=0.1, K=10)
 
     def forward(self, x: Tensor, edge_index: Adj, drop_rate: float = 0):
         x = self.gnn1(x, edge_index, drop_rate)
-        x = F.relu(x)
+        if self.backbone == 'GAT':
+            x = F.elu(x)
+        else:
+            x = F.relu(x)
         x = self.gnn2(x, edge_index, drop_rate)
         return x
 

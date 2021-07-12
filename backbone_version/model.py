@@ -32,10 +32,11 @@ class DropBlock:
 class OurModelLayer(torch.nn.Module):
     def __init__(self, in_channels: int, out_channels: int, dropping_method: str, backbone: str, heads: int = 1,
                  K: int = 1, alpha: float = 0, add_self_loops: bool = True, normalize: bool = True, bias: bool = True,
-                 unbias: float = 0):
+                 unbias: float = 0, transform_first: bool = False):
         super(OurModelLayer, self).__init__()
         self.dropping_method = dropping_method
         self.drop_block = DropBlock(dropping_method)
+        self.transform_first = transform_first
 
         if backbone == 'GCN':
             self.backbone = Bb.BbGCN(add_self_loops, normalize, unbias)
@@ -64,12 +65,17 @@ class OurModelLayer(torch.nn.Module):
         message_drop = 0
         if self.dropping_method == 'DropMessage':
             message_drop = drop_rate
+
         if self.training:
             x, edge_index = self.drop_block.drop(x, edge_index, drop_rate)
 
+        if self.transform_first:
+            x = x.matmul(self.weight)
+
         out = self.backbone(x, edge_index, message_drop)
 
-        out = out.matmul(self.weight)
+        if not self.transform_first:
+            out = out.matmul(self.weight)
         if self.bias is not None:
             out += self.bias
 
