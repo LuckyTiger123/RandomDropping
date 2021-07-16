@@ -3,6 +3,7 @@ import sys
 import torch
 import torch_geometric
 import torch.nn.functional as F
+from torch_sparse import SparseTensor, set_diag
 from torch import Tensor
 from torch_geometric.nn.conv import MessagePassing
 from torch_geometric.typing import Adj, OptTensor
@@ -23,14 +24,20 @@ class ModelPretreatment:
     def pretreatment(self, x: Tensor, edge_index: Adj):
         # add self loop
         if self.add_self_loops:
-            num_nodes = x.size(0)
-            edge_index, _ = torch_geometric.utils.remove_self_loops(edge_index)
-            edge_index, _ = torch_geometric.utils.add_self_loops(edge_index, num_nodes=num_nodes)
+            if isinstance(edge_index, Tensor):
+                num_nodes = x.size(0)
+                edge_index, _ = torch_geometric.utils.remove_self_loops(edge_index)
+                edge_index, _ = torch_geometric.utils.add_self_loops(edge_index, num_nodes=num_nodes)
+            elif isinstance(edge_index, SparseTensor):
+                edge_index = set_diag(edge_index)
 
         # normalize
         edge_weight = None
         if self.normalize:
-            row, col = edge_index
+            if isinstance(edge_index, Tensor):
+                row, col = edge_index
+            elif isinstance(edge_index, SparseTensor):
+                row, col, _ = edge_index.coo()
             deg = torch_geometric.utils.degree(col, x.size(0), dtype=x.dtype)
             deg_inv_sqrt = deg.pow(-0.5)
             edge_weight = deg_inv_sqrt[row] * deg_inv_sqrt[col]
@@ -63,7 +70,8 @@ class BbGCN(MessagePassing):
             return x_j
 
         # drop message-channel
-        x_j = x_j.mul(torch.bernoulli(torch.ones_like(x_j) - drop_rate).long().to(x_j.device))
+        # x_j = x_j.mul(torch.bernoulli(torch.ones_like(x_j) - drop_rate).long().to(x_j.device))
+        x_j = F.dropout(x_j, drop_rate)
 
         # adjust bias
         if self.unbias != 0:
@@ -108,7 +116,8 @@ class BbGAT(MessagePassing):
             return x_j * alpha.unsqueeze(-1)
 
         # drop message-channel
-        x_j = x_j.mul(torch.bernoulli(torch.ones_like(x_j) - drop_rate).long().to(x_j.device))
+        # x_j = x_j.mul(torch.bernoulli(torch.ones_like(x_j) - drop_rate).long().to(x_j.device))
+        x_j = F.dropout(x_j, drop_rate)
 
         # adjust bias
         if self.unbias != 0:
@@ -147,7 +156,8 @@ class BbAPPNP(MessagePassing):
             return x_j
 
         # drop message-channel
-        x_j = x_j.mul(torch.bernoulli(torch.ones_like(x_j) - drop_rate).long().to(x_j.device))
+        # x_j = x_j.mul(torch.bernoulli(torch.ones_like(x_j) - drop_rate).long().to(x_j.device))
+        x_j = F.dropout(x_j, drop_rate)
 
         # adjust bias
         if self.unbias != 0:

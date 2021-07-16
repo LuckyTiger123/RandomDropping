@@ -5,6 +5,7 @@ from torch.nn import Parameter
 from torch import Tensor
 from torch_geometric.typing import Adj
 import torch.nn.functional as F
+from torch_sparse import SparseTensor
 
 sys.path.append(os.path.join(os.path.dirname("__file__"), '..'))
 import backbone_version.backbone as Bb
@@ -21,6 +22,9 @@ class DropBlock:
             x = x * torch.bernoulli(torch.ones(x.size(0), 1) - drop_rate).to(x.device)
         elif self.dropping_method == 'DropEdge':
             edge_reserved_size = int(edge_index.size(1) * (1 - drop_rate))
+            if isinstance(edge_index, SparseTensor):
+                row, col, _ = edge_index.coo()
+                edge_index = torch.stack((row, col))
             perm = torch.randperm(edge_index.size(1))
             edge_index = edge_index.t()[perm][:edge_reserved_size].t()
         elif self.dropping_method == 'Dropout':
