@@ -142,6 +142,7 @@ for drop_rate in drop_rate_list:
             unbias_rate = drop_rate
         else:
             unbias_rate = 0
+        gc.collect()
         model = Model(data.num_features, hidden_dimensions, dataset.num_classes, num_layers, backbone, drop_method,
                       unbias_rate).to(device)
         optimizer = torch.optim.Adam(model.parameters(), lr=0.01, weight_decay=0.0005)
