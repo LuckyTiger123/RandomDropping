@@ -27,7 +27,7 @@ cuda_device = 0
 train_dataset = 'Cora'  # ['Cora', 'CiteSeer', 'PubMed']:
 drop_method = 'DropMessage' # ['DropNode', 'DropEdge', 'Dropout', 'DropMessage']:
 drop_rate = 0  # [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]:
-backbone = 'GCN'  # ['GAT', 'GCN', 'APPNP']:
+backbone = 'APPNP'  # ['GAT', 'GCN', 'APPNP']:
 unbias = True
 
 # random generate train, validate, test mask
@@ -77,6 +77,11 @@ class Model(torch.nn.Module):
         self.gnn2.reset_parameters()
 
 
+unbias_rate = drop_rate if unbias else 0
+model = Model(dataset.num_features, dataset.num_classes, backbone, drop_method, unbias_rate).to(device)
+optimizer = torch.optim.Adam(model.parameters(), lr=0.01, weight_decay=0.0005)
+
+
 def train(data):
     model.train()
 
@@ -114,10 +119,6 @@ def test(data):
 
     return perfs
 
-
-unbias_rate = drop_rate if unbias else 0
-model = Model(dataset.num_features, dataset.num_classes, backbone, drop_method, unbias_rate).to(device)
-optimizer = torch.optim.Adam(model.parameters(), lr=0.01, weight_decay=0.0005)
 
 best_val_perf = test_perf = 0
 epoch_num = 500
