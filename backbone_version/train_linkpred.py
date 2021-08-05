@@ -22,30 +22,6 @@ def get_link_labels(pos_edge_index: Tensor, neg_edge_index: Tensor):
     return link_labels
 
 
-cuda_device = 0
-
-train_dataset = 'Cora'  # ['Cora', 'CiteSeer', 'PubMed']:
-drop_method = 'DropMessage' # ['DropNode', 'DropEdge', 'Dropout', 'DropMessage']:
-drop_rate = 0  # [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]:
-backbone = 'APPNP'  # ['GAT', 'GCN', 'APPNP']:
-unbias = True
-
-# random generate train, validate, test mask
-random_seed = 1
-torch.manual_seed(random_seed)
-torch.cuda.manual_seed(random_seed)
-torch.backends.cudnn.benchmark = False
-torch.backends.cudnn.deterministic = True
-
-# device selection
-device = torch.device('cuda:{}'.format(cuda_device) if torch.cuda.is_available() else 'cpu')
-
-# collect dataset
-dataset = Planetoid(root="../TestDataset/{}".format(train_dataset), name=train_dataset, transform=T.NormalizeFeatures())
-# preprocess for training: Train:Val:Test=0.85:0.05:0.1
-data = train_test_split_edges(dataset[0])
-data = data.to(device=device)
-
 # Model
 class Model(torch.nn.Module):
     def __init__(self, feature_num, output_num, backbone, drop_method, unbias):
@@ -75,11 +51,6 @@ class Model(torch.nn.Module):
     def reset_parameters(self):
         self.gnn1.reset_parameters()
         self.gnn2.reset_parameters()
-
-
-unbias_rate = drop_rate if unbias else 0
-model = Model(dataset.num_features, dataset.num_classes, backbone, drop_method, unbias_rate).to(device)
-optimizer = torch.optim.Adam(model.parameters(), lr=0.01, weight_decay=0.0005)
 
 
 def train(data):
@@ -120,22 +91,76 @@ def test(data):
     return perfs
 
 
-best_val_perf = test_perf = 0
+train_dataset = 'CiteSeer'  # ['Cora', 'CiteSeer', 'PubMed']:
+#drop_method = 'DropEdge' # ['DropNode', 'DropEdge', 'Dropout', 'DropMessage']:
+# drop_rate = 0  # [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]:
+backbone = 'GCN'  # ['GAT', 'GCN', 'APPNP']:
+unbias = False
+train_round_number = 10
 epoch_num = 500
-for epoch in range(epoch_num):
-    train_loss = train(data)
-    val_perf, tmp_test_perf = test(data)
 
-    log = 'Epoch: {:03d}, Loss: {:.6f}, Val acc: {:.6f}, Test acc: {:.6f}'
-    print(log.format(epoch, train_loss, val_perf, tmp_test_perf))
+# random generate train, validate, test mask
+random_seed = 1
+torch.manual_seed(random_seed)
+torch.cuda.manual_seed(random_seed)
+torch.backends.cudnn.benchmark = False
+torch.backends.cudnn.deterministic = True
 
-    if val_perf > best_val_perf:
-        best_val_perf = val_perf
-        test_perf = tmp_test_perf
+# device selection
+cuda_device = 2
+device = torch.device('cuda:{}'.format(cuda_device) if torch.cuda.is_available() else 'cpu')
 
-# z = model.encode(data.x, data.train_pos_edge_index)
-# final_edge_index = model.decode_all(z)
+# collect dataset
+dataset = Planetoid(root="../TestDataset/{}".format(train_dataset), name=train_dataset, transform=T.NormalizeFeatures())
+
+result_statistics = pd.DataFrame(
+    columns=['dataset', 'backbone', 'drop_method', 'drop_rate', 'unbias',
+             'train_round', 'best_val_auc', 'test_auc']
+)
+
+#for backbone in ['GAT', 'GCN', 'APPNP']:
+for drop_method in ['DropMessage', 'DropNode', 'Dropout', 'DropEdge']:
+    for drop_rate in [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]:
+        for train_round in range(train_round_number):
+
+            # preprocess for training: Train:Val:Test=0.85:0.05:0.1
+            data = train_test_split_edges(dataset[0])
+            data = data.to(device=device)
+
+            unbias_rate = drop_rate if unbias else 0
+            model = Model(dataset.num_features, dataset.num_classes, backbone, drop_method, unbias_rate).to(device)
+            optimizer = torch.optim.Adam(model.parameters(), lr=0.005, weight_decay=0.0005)
+
+            best_val_perf = test_perf = 0
+            for epoch in range(epoch_num):
+                train_loss = train(data)
+                val_perf, tmp_test_perf = test(data)
+
+                if epoch % 20 == 0:
+                    log = 'Epoch: {:03d}, Loss: {:.6f}, Val acc: {:.6f}, Test acc: {:.6f}'
+                    print(log.format(epoch, train_loss, val_perf, tmp_test_perf))
+
+                if val_perf > best_val_perf:
+                    best_val_perf = val_perf
+                    test_perf = tmp_test_perf
+
+            result_statistics.loc[result_statistics.shape[0]] = {
+                'dataset': train_dataset,
+                'backbone': backbone,
+                'drop_method': drop_method,
+                'drop_rate': drop_rate,
+                'unbias': unbias,
+                'best_val_auc': round(best_val_perf, 4),
+                'test_auc': round(test_perf, 4),
+                'train_round': train_round
+            }
+            print('The best val acc is {}, and the test acc is {}.'.format(best_val_perf, test_perf))
+
+save_path = os.path.join('..', 'result_linkpred_basis_0802', train_dataset)
+if not os.path.exists(save_path):
+    os.makedirs(save_path)
+result_statistics.to_excel(
+    os.path.join(save_path, '{}_{}_linkpred_basis_{}.xlsx'.format(backbone, drop_method, unbias)))
+print('File saved!')
 
 print('Mission completes.')
-print('The best val acc is {}, and the test acc is {}.'.format(best_val_perf, test_perf))
-
