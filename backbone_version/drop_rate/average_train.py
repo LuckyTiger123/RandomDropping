@@ -12,10 +12,12 @@ import torch.nn.functional as F
 import torch_geometric.transforms as T
 
 sys.path.append(os.path.join(os.path.dirname("__file__"), '..', '..'))
-import backbone_version.drop_rate.drop_model as Md
+import backbone_version.drop_rate.drop_model as Md_GCN
+import backbone_version.drop_rate.drop_model_GAT as Md_GAT
+import backbone_version.drop_rate.drop_model_APPNP as Md_APPNP
 
 parser = argparse.ArgumentParser()
-parser.add_argument('-c', '--cuda', type=int, default=0)
+parser.add_argument('-c', '--cuda', type=int, default=4)
 parser.add_argument('-t', '--train_round', type=int, default=20)
 parser.add_argument('-f', '--file_id', type=int, default=1)
 parser.add_argument('-e', '--epoch', type=int, default=1000)
@@ -24,13 +26,14 @@ parser.add_argument('-r', '--rand_seed', type=int, default=0)
 args = parser.parse_args()
 
 # configuration parameters
+backbone = 'APPNP'
 train_dataset = args.dataset
 cuda_device = args.cuda
 train_round_number = args.train_round
 epoch_num = args.epoch
 file_id = args.file_id
 
-drop_rate_list = [-1, 2]
+drop_rate_list = [-1, 0, 0.1, 0.2, 0.25, 0.3, 0.4, 2]
 
 # fix random seed
 random_seed = args.rand_seed
@@ -57,8 +60,8 @@ data = dataset[0].to(device=device)
 class Model(torch.nn.Module):
     def __init__(self, feature_num, output_num, drop_method):
         super(Model, self).__init__()
-        self.gnn1 = Md.ModifiedGCN(feature_num, 16, drop_method=drop_method)
-        self.gnn2 = Md.ModifiedGCN(16, output_num, drop_method=drop_method)
+        self.gnn1 = Md_APPNP.ModifiedAPPNPConv(feature_num, 16, K=10, alpha=0.1, drop_method=drop_method)
+        self.gnn2 = Md_APPNP.ModifiedAPPNPConv(16, output_num, K=10, alpha=0.1, drop_method=drop_method)
         self.reset_parameters()
 
     def forward(self, x: Tensor, edge_index: Adj):
@@ -144,5 +147,5 @@ for drop_rate in drop_rate_list:
 save_path = os.path.join('..', '..', 'result', 'drop_rate', train_dataset)
 if not os.path.exists(save_path):
     os.makedirs(save_path)
-result_statistic.to_excel(os.path.join(save_path, '{}.xlsx'.format(file_id)))
+result_statistic.to_excel(os.path.join(save_path, '{}_{}.xlsx'.format(backbone, file_id)))
 print('Mission complete.')
