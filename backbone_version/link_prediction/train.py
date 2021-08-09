@@ -7,7 +7,6 @@ from sklearn.metrics import roc_auc_score
 from torch_geometric.utils import negative_sampling
 from torch_geometric.datasets import Planetoid
 import torch_geometric.transforms as T
-from torch_geometric.nn import GCNConv
 from torch_geometric.utils import train_test_split_edges
 
 sys.path.append(os.path.join(os.path.dirname("__file__"), '..', '..'))
@@ -17,7 +16,7 @@ train_dataset = 'Cora'
 cuda_device = 3
 drop_method = 'Dropout'
 drop_rate = 0.1
-backbone = 'GAT'
+backbone = 'GCN'
 unbias = False
 
 # random generate train, validate, test mask
@@ -85,7 +84,7 @@ def train(data):
         num_neg_samples=data.train_pos_edge_index.size(1))
 
     optimizer.zero_grad()
-    z = model.encode(data.x, data.train_pos_edge_index)
+    z = model.encode(data.x, data.train_pos_edge_index, drop_rate)
     link_logits = model.decode(z, data.train_pos_edge_index, neg_edge_index)
     link_labels = get_link_labels(data.train_pos_edge_index, neg_edge_index)
     loss = F.binary_cross_entropy_with_logits(link_logits, link_labels)
@@ -99,7 +98,7 @@ def train(data):
 def test(data):
     model.eval()
 
-    z = model.encode(data.x, data.train_pos_edge_index)
+    z = model.encode(data.x, data.train_pos_edge_index, drop_rate)
 
     results = []
     for prefix in ['val', 'test']:
@@ -113,11 +112,11 @@ def test(data):
 
 
 best_val_auc = test_auc = 0
-for epoch in range(1, 101):
+for epoch in range(1, 501):
     loss = train(data)
     val_auc, tmp_test_auc = test(data)
     if val_auc > best_val_auc:
-        best_val = val_auc
+        best_val_auc = val_auc
         test_auc = tmp_test_auc
     print(f'Epoch: {epoch:03d}, Loss: {loss:.4f}, Val: {val_auc:.4f}, '
           f'Test: {test_auc:.4f}')
