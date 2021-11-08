@@ -1,5 +1,3 @@
-import os
-import sys
 import torch
 import numpy as np
 import torch_geometric.nn as nn
@@ -7,18 +5,13 @@ from torch import Tensor
 from torch_geometric.typing import Adj
 import torch.nn.functional as F
 
-sys.path.append(os.path.join(os.path.dirname("__file__"), '..', '..'))
-import backbone_version.model as Md
-
 cuda_device = 5
 train_dataset = 'ppd_cuishou'
-drop_method = 'Dropout'
-drop_rate = 0.1
-backbone = 'GCN'
 hidden_dimensions = 64
 num_layers = 3
+
+# select which label to predict
 label_select = 0
-unbias = False
 
 x_path = '/data/luckytiger/ppd_cuishou/graph/05_01/node_x.npy'
 y_path = '/data/luckytiger/ppd_cuishou/graph/05_01/node_y.npy'
@@ -53,24 +46,23 @@ label_test_mask = torch.from_numpy(np.load(label_test_mask_path)).to(device)
 
 # Model
 class Model(torch.nn.Module):
-    def __init__(self, in_channels, hidden_channels, out_channels, num_layers, backbone, drop_method, unbias):
+    def __init__(self, in_channels, hidden_channels, out_channels, num_layers):
         super(Model, self).__init__()
         self.convs = torch.nn.ModuleList()
-        self.convs.append(
-            Md.OurModelLayer(in_channels, hidden_channels, drop_method, backbone, unbias=unbias))
+        self.convs.append(nn.GCNConv(in_channels, hidden_channels))
         self.batch_norms = torch.nn.ModuleList()
         self.batch_norms.append(nn.BatchNorm(hidden_channels))
         for _ in range(num_layers - 2):
-            self.convs.append(Md.OurModelLayer(hidden_channels, hidden_channels, drop_method, backbone, unbias=unbias))
+            self.convs.append(nn.GCNConv(hidden_channels, hidden_channels))
             self.batch_norms.append(nn.BatchNorm(hidden_channels))
-        self.convs.append(Md.OurModelLayer(hidden_channels, out_channels, drop_method, backbone, unbias=unbias))
+        self.convs.append(nn.GCNConv(hidden_channels, out_channels))
 
-    def forward(self, x: Tensor, edge_index: Adj, drop_rate: float = 0):
+    def forward(self, x: Tensor, edge_index: Adj):
         for i in range(len(self.convs) - 1):
-            x = self.convs[i](x, edge_index, drop_rate)
+            x = self.convs[i](x, edge_index)
             x = self.batch_norms[i](x)
             x = F.relu(x)
-        x = self.convs[-1](x, edge_index, drop_rate)
+        x = self.convs[-1](x, edge_index)
         return x
 
     def reset_parameters(self):
@@ -78,12 +70,7 @@ class Model(torch.nn.Module):
             conv.reset_parameters()
 
 
-if unbias:
-    unbias_rate = drop_rate
-else:
-    unbias_rate = 0
-
-model = Model(node_x.size(1), hidden_dimensions, 2, num_layers, backbone, drop_method, unbias_rate).to(device)
+model = Model(node_x.size(1), hidden_dimensions, 2, num_layers).to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=0.01, weight_decay=0.0005)
 epoch_num = 500
 model.reset_parameters()
@@ -92,7 +79,7 @@ model.reset_parameters()
 def train():
     model.train()
     optimizer.zero_grad()
-    out = model(node_x, graph_edge_index, drop_rate)
+    out = model(node_x, graph_edge_index)
     loss = F.cross_entropy(out[train_mask], node_y[label_select][label_train_mask], weight=Tensor([1, 2]).to(device))
     loss.backward()
     print('the train loss is {}'.format(float(loss)))
@@ -102,7 +89,7 @@ def train():
 @torch.no_grad()
 def test():
     model.eval()
-    out = model(node_x, graph_edge_index, drop_rate)
+    out = model(node_x, graph_edge_index)
     _, pred = out.max(dim=1)
     # acc
     train_correct = int(pred[train_mask].eq(node_y[label_select][label_train_mask]).sum().item())

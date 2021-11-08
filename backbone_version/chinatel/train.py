@@ -29,12 +29,12 @@ f = open(spilt_path, 'rb')
 spilt = pickle.load(f)
 f.close()
 
-cuda_device = 0
+cuda_device = 9
 train_dataset = 'chinatel'
 drop_method = 'Dropout'
-drop_rate = 0.3
-backbone = 'GCN'
-hidden_dimensions = 128
+drop_rate = 0.1
+backbone = 'GAT'
+hidden_dimensions = 64
 num_layers = 3
 unbias = False
 

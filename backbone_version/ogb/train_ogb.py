@@ -10,7 +10,7 @@ from ogb.nodeproppred import PygNodePropPredDataset, Evaluator
 sys.path.append(os.path.join(os.path.dirname("__file__"), '..', '..'))
 import backbone_version.model as Md
 
-cuda_device = 1
+cuda_device = 4
 train_dataset = 'ogbn-arxiv'
 drop_method = 'Dropout'
 drop_rate = 0
