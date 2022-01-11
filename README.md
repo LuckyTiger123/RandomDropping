@@ -23,7 +23,9 @@ All the necessary data files can be downloaded from the PyG.
 
 ### Run
 
-To conduct experiments, we can run the train.py for simple training, and run the XX_average_train.py to select hyperparameters. 
+To conduct experiments, we can run the `train.py` for simple training, and run the `XX_average_train.py` to select hyperparameters and train multiple rounds.
+
+ 
 
 ----
 
