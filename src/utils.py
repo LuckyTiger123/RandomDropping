@@ -18,6 +18,13 @@ def ones(tensor: Tensor):
         tensor.data.fill_(1)
 
 
+def diag_ones(tensor):
+    if tensor is not None:
+        tensor.data.fill_(0)
+        for i in range(tensor.size(1)):
+            tensor.data[i][i] = 1
+
+
 def rand_zero_to_ones(tensor: Tensor):
     if tensor is not None:
         tensor.data.uniform_(0, 1)

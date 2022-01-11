@@ -13,7 +13,7 @@ sys.path.append(os.path.join(os.path.dirname("__file__"), '..'))
 import backbone_version.model as Md
 
 parser = argparse.ArgumentParser()
-parser.add_argument('-c', '--cuda', type=int, default=0)
+parser.add_argument('-c', '--cuda', type=int, default=1)
 parser.add_argument('-t', '--train_round', type=int, default=10)
 parser.add_argument('-f', '--file_id', type=int, default=0)
 parser.add_argument('-d', '--dataset', type=str, default='Cora')

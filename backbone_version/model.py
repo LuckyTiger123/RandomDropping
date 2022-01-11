@@ -65,6 +65,11 @@ class OurModelLayer(torch.nn.Module):
         utils.zeros(self.bias)
         self.backbone.reset_parameters()
 
+    def special_reset_parameters(self):
+        utils.diag_ones(self.weight)
+        utils.zeros(self.bias)
+        self.backbone.reset_parameters()
+
     def forward(self, x: Tensor, edge_index: Adj, drop_rate: float = 0):
         message_drop = 0
         if self.dropping_method == 'DropMessage':

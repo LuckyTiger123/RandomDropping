@@ -27,6 +27,7 @@ def get_ydata(filename, dropping_method):
 dataset = 'Cora'
 backbone = 'GCN'
 dropping_rate = '0.7'
+linewidth = 1
 
 filepath = './result/' + 'statistic/' + dataset + '/'
 filename = filepath + backbone + '_{}_' + str(dropping_rate) + '_lossfunc_without_normalization.xlsx'
@@ -43,21 +44,21 @@ yy_list.append(get_ydata(filename, dropping_method_list[3]))
 yy_list.append(get_ydata(filename, dropping_method_list[4]))
 
 fig, ax = plt.subplots()
-plt.xticks(fontsize=16)
-plt.yticks(fontsize=16)
-ax.plot(xx, yy_list[0], label=backbone + '-' + dropping_method_list[0])
-ax.plot(xx, yy_list[1], label=backbone + '-' + dropping_method_list[1])
-ax.plot(xx, yy_list[2], label=backbone + '-' + dropping_method_list[2])
-ax.plot(xx, yy_list[3], label=backbone + '-' + dropping_method_list[3])
-ax.plot(xx, yy_list[4], label=backbone + '-' + dropping_method_list[4])
-ax.set_xlabel('Epoch', fontsize=16)
-ax.set_ylabel('Loss', fontsize=16)
+plt.xticks(fontsize=20)
+plt.yticks(fontsize=20)
+ax.plot(xx, yy_list[0], label=backbone + '-' + dropping_method_list[0], linewidth=linewidth)
+ax.plot(xx, yy_list[1], label=backbone + '-' + dropping_method_list[1], linewidth=linewidth)
+ax.plot(xx, yy_list[2], label=backbone + '-' + dropping_method_list[2], linewidth=linewidth)
+ax.plot(xx, yy_list[3], label=backbone + '-' + dropping_method_list[3], linewidth=linewidth)
+ax.plot(xx, yy_list[4], label=backbone + '-' + dropping_method_list[4], linewidth=linewidth)
+ax.set_xlabel('Epoch', fontsize=20)
+ax.set_ylabel('Loss', fontsize=20)
 # ax.set_title('Test loss on {} dataset'.format(dataset))
-ax.legend(fontsize=16)
+ax.legend(fontsize=20)
 
 plt.show()
 # fig.show()
-fig.savefig('./result/vector_graph/scatter.pdf', dpi=600, format='pdf')
+fig.savefig('./result/vector_graph/scatter_local.pdf', dpi=600, format='pdf')
 # savepath = './fig_loss/' + dataset + '/'
 # if not os.path.exists(savepath):
 #     os.mkdir(savepath)
